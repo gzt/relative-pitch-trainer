@@ -1,8 +1,11 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#315fc4">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
 <title>Relative Pitch Trainer</title>
 <style>
 :root{color-scheme:light dark;--bg:#f4f5f7;--panel:#fff;--ink:#20242b;--muted:#667085;--line:#d9dee7;--accent:#315fc4;--accent2:#e9efff;--good:#16794a}
@@ -19,6 +22,9 @@ details{margin-top:15px}summary{cursor:pointer;font-weight:600}.small{font-size:
 @media(max-width:720px){.layout{grid-template-columns:1fr}main{margin-top:18px}.pitch-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 </style>
 </head>
+<script>
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+</script>
 <body>
 <main>
   <h1>Relative Pitch Trainer</h1>
