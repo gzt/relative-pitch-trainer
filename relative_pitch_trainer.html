@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relative Pitch Trainer</title>
+<style>
+:root{color-scheme:light dark;--bg:#f4f5f7;--panel:#fff;--ink:#20242b;--muted:#667085;--line:#d9dee7;--accent:#315fc4;--accent2:#e9efff;--good:#16794a}
+@media(prefers-color-scheme:dark){:root{--bg:#171a20;--panel:#222731;--ink:#eef1f6;--muted:#aab3c2;--line:#3a4351;--accent:#91adff;--accent2:#293858;--good:#69d39a}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:1000px;margin:30px auto;padding:0 18px 40px}h1{font-size:1.8rem;margin:0 0 5px}h2{font-size:1.05rem;margin:0 0 14px}.intro{color:var(--muted);margin:0 0 22px}
+.layout{display:grid;grid-template-columns:minmax(280px, .9fr) minmax(320px,1.1fr);gap:18px}.panel{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:19px;box-shadow:0 2px 8px #00000008}
+.field{margin:0 0 15px}label,.label{display:block;font-weight:600;margin-bottom:6px}select,input[type=number],input[type=text]{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
+.inline{display:flex;gap:10px;align-items:center}.inline>*{flex:1;min-width:0}.choice{display:flex;flex-wrap:wrap;gap:8px}.choice label{font-weight:400;margin:0;display:flex;gap:6px;align-items:center;padding:7px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer}.choice input{accent-color:var(--accent)}
+button{border:1px solid var(--line);border-radius:9px;padding:10px 13px;background:var(--bg);color:var(--ink);font:600 14px system-ui;cursor:pointer}button:hover{border-color:var(--accent)}button.primary{background:var(--accent);border-color:var(--accent);color:white}button:disabled{opacity:.45;cursor:not-allowed}.actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:12px}.actions button{flex:1}
+.pitch-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}.pitch-grid label{display:flex;align-items:center;gap:6px;font-weight:400;margin:0;padding:7px 8px;border:1px solid var(--line);border-radius:7px}.pitch-grid input{accent-color:var(--accent)}.hint{font-size:.86rem;color:var(--muted);margin:6px 0 0}.hidden{display:none!important}
+.exercise{min-height:260px;display:flex;flex-direction:column}.status{font-size:.9rem;color:var(--muted)}.sequence{font-size:clamp(1.8rem,5vw,2.7rem);font-weight:700;letter-spacing:.035em;min-height:78px;display:flex;align-items:center;justify-content:center;text-align:center;margin:20px 0 5px}.sequence .placeholder{font-size:1.1rem;font-weight:400;color:var(--muted);letter-spacing:0}.meta{text-align:center;color:var(--muted);min-height:24px}.exercise .actions{margin-top:auto}.note{border-top:1px solid var(--line);margin-top:16px;padding-top:12px;color:var(--muted);font-size:.88rem}.tag{display:inline-block;background:var(--accent2);color:var(--ink);padding:3px 8px;border-radius:99px;font-size:.82rem;margin-right:5px}
+details{margin-top:15px}summary{cursor:pointer;font-weight:600}.small{font-size:.85rem;color:var(--muted)}.error{color:#c33;font-size:.9rem;min-height:1.3em}
+@media(max-width:720px){.layout{grid-template-columns:1fr}main{margin-top:18px}.pitch-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+</style>
+</head>
+<body>
+<main>
+  <h1>Relative Pitch Trainer</h1>
+  <p class="intro">Generate a short melodic pattern, sing it from the reference pitch, then reveal the answer.</p>
+  <div class="layout">
+    <section class="panel" aria-label="Exercise settings">
+      <h2>Exercise settings</h2>
+      <div class="field"><label for="mode">Mode</label><select id="mode"><option value="major">Major (DO is tonic)</option><option value="minor">Natural minor (LA is tonic)</option></select></div>
+      
+      <div class="field"><label for="collectionType">Pitch collection</label><select id="collectionType"><option value="degrees">Scale-relative degrees</option><option value="chromatic">Chromatic semitones from tonic</option></select></div>
+      <div class="field" id="degreeWrap"><span class="label">Available scale degrees</span><div id="degreeChoices" class="pitch-grid"></div><p class="hint" id="degreeHint">Choose the notes that may appear in each sequence.</p></div>
+      <div class="field hidden" id="chromaticWrap"><span class="label">Available semitones</span><div id="chromaticChoices" class="pitch-grid"></div><p class="hint">0 is the tonic; 1 is one semitone above it, and so on.</p></div>
+      <div class="field"><label>Sequence length</label><div class="inline"><div><span class="small">Minimum</span><input id="minLength" type="number" min="2" max="12" value="3"></div><div><span class="small">Maximum</span><input id="maxLength" type="number" min="2" max="12" value="4"></div></div></div>
+      <div class="field"><label for="keyMode">Key selection</label><select id="keyMode"><option value="fixed">Fixed key</option><option value="cycle">Cycle keys (keep same sequence)</option><option value="random">Random key for each new sequence</option></select></div>
+      <div class="field" id="fixedKeyWrap"><label for="fixedKey">DO / major-key reference</label><select id="fixedKey"></select></div>
+      <div class="field hidden" id="cycleKeysWrap"><span class="label">Keys in cycle</span><div id="keyChoices" class="pitch-grid"></div><p class="hint">Keys are visited in chromatic order. In minor mode, each major-key reference uses its relative minor (LA).</p></div>
+      <div class="field"><label for="tempo">Playback tempo</label><div class="inline"><input id="tempo" type="range" min="45" max="180" value="90"><output id="tempoOut">90 BPM</output></div></div>
+      <div class="field"><label for="duration">Note length</label><select id="duration"><option value="0.65">Short</option><option value="0.9" selected>Medium</option><option value="1.2">Long</option></select></div>
+      <div class="field"><label for="instrument">Instrument sound</label><select id="instrument"><option value="piano" selected>Acoustic piano</option><option value="pipeFluid">Pipe organ — FluidR3</option><option value="pipeGeneral">Pipe organ — GeneralUser GS</option><option value="pipeJCLive">Pipe organ — JCLive</option><option value="reedFluid">Reed organ — FluidR3</option><option value="drawbar">Drawbar organ — Aspirin</option></select><p class="hint">Organ choices are octave-doubled; piano is not.</p></div>
+      <div class="error" id="error" role="alert"></div>
+      <button class="primary" id="generate">New exercise</button>
+      <details><summary>How pitch collections work</summary><p class="small">Scale-relative mode uses DO–RE–MI–FA–SOL–LA–TI in major, and LA–TI–DO–RE–MI–FA–SOL in natural minor. Chromatic mode selects semitone offsets 0–11 from the tonic. The selected key is the DO/major-key reference. In minor mode, LA is the relative-minor tonic (nine semitones above DO). Melodic notes are placed in the nearest octave to the preceding note.</p></details>
+    </section>
+    <section class="panel exercise" aria-label="Current exercise">
+      <div class="status" id="status">Ready when you are.</div>
+      <div class="sequence" id="sequence"><span class="placeholder">Generate an exercise to begin</span></div>
+      <div class="meta" id="meta">Your singing sequence will appear here.</div>
+      <div class="actions"><button id="playTonic" disabled>▶ Play tonic (DO / LA)</button><button id="playFirst" disabled>▶ Play first pitch</button></div>
+      <div class="actions"><button id="playSequence" disabled>▶ Play sequence</button><button id="speakSequence" disabled>🔊 Speak sequence</button></div>
+      <div class="actions"><button id="nextKey" disabled>Next key</button><button id="nextExercise" disabled>New sequence</button></div>
+      <div class="note"><span class="tag" id="modeTag">Major</span><span class="tag" id="keyTag">No key</span><span class="tag" id="lengthTag">No sequence</span><p id="instructions">Choose your settings and generate an exercise. Sing the pattern after hearing the reference, then reveal the sequence to check yourself.</p></div>
+    </section>
+  </div>
+  <p class="small" style="margin-top:16px">Instrument samples are loaded from WebAudioFont the first time you play each instrument. An internet connection is required for the initial load; the browser may cache the samples afterward.</p>
+  <footer class="small" aria-label="Keyboard shortcuts" style="margin-top:22px;padding:13px 15px;border:1px solid var(--line);border-radius:10px;background:var(--panel)">
+    <strong>Keyboard shortcuts</strong>
+    <span>Space — New exercise</span> · <span>T — Play tonic</span> · <span>F — Play first pitch</span> · <span>Enter — Play sequence</span> · <span>N — New sequence</span> · <span>V — Speak sequence</span>
+  </footer>
+  <details class="small"><summary>Use the natural female spoken voice</summary><p>The browser's built-in voice is used as a fallback.</p></details>
+</main>
+<script>
+(()=>{
+'use strict';
+const $=id=>document.getElementById(id);
+const keys=['C','C♯','D','E♭','E','F','F♯','G','A♭','A','B♭','B'];
+const keySemis=[0,1,2,3,4,5,6,7,8,9,10,11];
+const major=[0,2,4,5,7,9,11], minor=[0,2,3,5,7,8,10];
+const majorNames=['DO','RE','MI','FA','SOL','LA','TI'];
+const minorNames=['LA','TI','DO','RE','MI','FA','SOL'];
+const chromaticNames=['DO','DI/RA','RE','RI/ME','MI','FA','FI/SE','SOL','SI/LE','LA','LI/TE','TI'];
+let current=null, audioCtx=null, busy=false, cycleIndex=0, wafPlayer=null, loadedPresets={}, activeVoiceAudio=null, voiceRun=0;
+function addChoices(container,items,name,defaults){container.innerHTML='';items.forEach((item,i)=>{const l=document.createElement('label'),x=document.createElement('input');x.type='checkbox';x.name=name;x.value=i;x.checked=defaults.includes(i);l.append(x,document.createTextNode(item));container.append(l)});}
+function init(){
+ keys.forEach((k,i)=>{const o=document.createElement('option');o.value=i;o.textContent=k; if(i===0)o.selected=true;$('fixedKey').append(o)});
+ addChoices($('degreeChoices'),majorNames,'degree',[0,1,2,3]);
+ addChoices($('chromaticChoices'),keys.map((_,i)=>`${i}: ${chromaticNames[i]}`),'chromatic',[0,2,4,5]);
+ addChoices($('keyChoices'),keys,'cyclekey',keySemis);
+ $('mode').addEventListener('change',()=>{refreshDegreeLabels();clearExercise()});
+ $('collectionType').addEventListener('change',()=>{const chrom=$('collectionType').value==='chromatic';$('degreeWrap').classList.toggle('hidden',chrom);$('chromaticWrap').classList.toggle('hidden',!chrom);clearExercise()});
+ $('keyMode').addEventListener('change',()=>{const v=$('keyMode').value;$('fixedKeyWrap').classList.toggle('hidden',v!=='fixed');$('cycleKeysWrap').classList.toggle('hidden',v!=='cycle');$('nextKey').disabled=v!=='cycle'||!current;clearExercise()});
+ $('tempo').addEventListener('input',()=>$('tempoOut').value=$('tempo').value+' BPM');
+ $('generate').addEventListener('click',generate);$('nextExercise').addEventListener('click',generate);$('nextKey').addEventListener('click',advanceKey);
+ $('playTonic').addEventListener('click',playTonic);$('playFirst').addEventListener('click',playFirst);$('playSequence').addEventListener('click',playSequence);$('speakSequence').addEventListener('click',speakSequence);
+ document.addEventListener('keydown',handleKeyboardShortcuts);
+ refreshDegreeLabels();
+}
+function handleKeyboardShortcuts(event){
+ if(event.ctrlKey||event.metaKey||event.altKey||event.shiftKey)return;
+ const target=event.target;
+ if(target instanceof Element && target.closest('input, textarea, select, button, summary, a, [contenteditable="true"]'))return;
+ const key=event.key.toLowerCase();
+ const actions={
+  ' ':'generate',
+  't':'tonic',
+  'f':'first',
+  'enter':'sequence',
+  'n':'next',
+  'v':'speak'
+ };
+ const action=actions[key];
+ if(!action)return;
+ event.preventDefault();
+ if(action==='generate'||action==='next')generate();
+ else if(action==='tonic')playTonic();
+ else if(action==='first')playFirst();
+ else if(action==='sequence')playSequence();
+ else if(action==='speak')speakSequence();
+}
+function refreshDegreeLabels(){const m=$('mode').value;const labels=m==='major'?majorNames:minorNames;const selected=[...$('degreeChoices').querySelectorAll('input')].map(x=>x.checked);addChoices($('degreeChoices'),labels,'degree',selected.length?selected.map((v,i)=>v?i:-1).filter(i=>i>=0):[0,1,2,3]);$('degreeHint').textContent=m==='major'?'DO is the tonic; degrees are shown in major-scale solfège.':'LA is the tonic; degrees are shown in natural-minor solfège.';}
+function clearExercise(){current=null;$('sequence').innerHTML='<span class="placeholder">Generate an exercise to begin</span>';$('meta').textContent='Your singing sequence will appear here.';$('status').textContent='Settings changed — generate a new exercise.';$('playTonic').disabled=$('playFirst').disabled=$('playSequence').disabled=$('speakSequence').disabled=$('nextExercise').disabled=$('nextKey').disabled=true;}
+function checked(name){return [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(x=>Number(x.value));}
+function settings(){const mode=$('mode').value, type=$('collectionType').value;const pool=type==='degrees'?checked('degree'):checked('chromatic');const min=Number($('minLength').value),max=Number($('maxLength').value);if(!pool.length)throw Error('Select at least one pitch.');if(!Number.isInteger(min)||!Number.isInteger(max)||min<2||max>12||min>max)throw Error('Sequence length must be between 2 and 12, with minimum no greater than maximum.');let selectedKeys=$('keyMode').value==='cycle'?checked('cyclekey'):[Number($('fixedKey').value)];if(!selectedKeys.length)throw Error('Select at least one key for the cycle.');return{mode,type,pool,min,max,keyMode:$('keyMode').value,keys:selectedKeys,tempo:Number($('tempo').value),duration:Number($('duration').value)};}
+function randomInt(n){return Math.floor(Math.random()*n)}
+function chooseKey(s){if(s.keyMode==='fixed')return Number($('fixedKey').value);if(s.keyMode==='random')return randomInt(12);return s.keys[cycleIndex%s.keys.length];}
+function degreeSemitone(index,mode){return (mode==='major'?major:minor)[index];}
+function pitchInfo(step,s){if(s.type==='chromatic'){const names=s.mode==='major'?chromaticNames:['LA','LE','LI','DO','DI','RE','ME','MI','FA','FI','SOL','SI'];return{semi:step,name:names[step]};}return{semi:degreeSemitone(step,s.mode),name:(s.mode==='major'?majorNames:minorNames)[step]};}
+function makeSequence(s){
+ const len=s.min+randomInt(s.max-s.min+1);
+ if(s.pool.length<2)throw Error('Select at least two different pitches to avoid consecutive repeats.');
+ const sequence=[];
+ for(let i=0;i<len;i++){
+  const choices=i===0?s.pool:s.pool.filter(x=>x!==sequence[i-1]);
+  sequence.push(choices[randomInt(choices.length)]);
+ }
+ return sequence;
+}
+// The selected key is the DO/major-key reference. In minor, LA is its relative-minor tonic.
+function tonicMidi(key,mode='major'){return 60+key+(mode==='minor'?9:0);}
+function toMidi(step,key,s){return tonicMidi(key,s.mode)+pitchInfo(step,s).semi;}
+function sequenceMidis(sequence,key,s){let previous=null;return sequence.map(step=>{const pitchClass=toMidi(step,key,s);if(previous===null){previous=pitchClass;return previous;}const octave=Math.round((previous-pitchClass)/12);const nearest=pitchClass+12*octave;previous=nearest;return nearest;});}
+function noteName(midi){return keys[((midi%12)+12)%12]+' '+(Math.floor(midi/12)-1)}
+function generate(){try{const s=settings();cycleIndex=0;const key=chooseKey(s);current={settings:s,key,sequence:makeSequence(s)};showCurrent();$('status').textContent='Sing the displayed sequence. Use either reference button if you need a starting pitch.';$('playTonic').disabled=$('playFirst').disabled=$('playSequence').disabled=$('speakSequence').disabled=$('nextExercise').disabled=false;$('nextKey').disabled=s.keyMode!=='cycle';$('meta').textContent='Sing the sequence shown above. The buttons play the tonic, first pitch, or complete sequence. Each successive note uses the nearest octave, minimizing melodic leaps.';}catch(e){$('error').textContent=e.message;return}$('error').textContent='';}
+function showCurrent(){const s=current.settings;$('modeTag').textContent=s.mode==='major'?'Major':'Natural minor';$('keyTag').textContent=s.mode==='major'?keys[current.key]+' major':keys[(current.key+9)%12]+' minor (relative to '+keys[current.key]+')';$('lengthTag').textContent=current.sequence.length+' notes';$('sequence').innerHTML=current.sequence.map(x=>`<span>${pitchInfo(x,s).name}</span>`).join(' · ');}
+function advanceKey(){if(!current||current.settings.keyMode!=='cycle')return;cycleIndex=(cycleIndex+1)%current.settings.keys.length;current.key=current.settings.keys[cycleIndex];showCurrent();$('status').textContent='Same pattern, transposed. Sing the displayed sequence in the new key.';$('meta').textContent='Sing the sequence shown above. The buttons play the tonic, first pitch, or complete sequence. Each successive note uses the nearest octave, minimizing melodic leaps.';}
+function getAudio(){if(!audioCtx){const AC=window.AudioContext||window.webkitAudioContext;if(!AC)throw Error('Web Audio is not supported in this browser.');audioCtx=new AC()}if(audioCtx.state==='suspended')audioCtx.resume();return audioCtx;}
+function loadScript(src){return new Promise((resolve,reject)=>{const existing=[...document.scripts].find(x=>x.src===src);if(existing){if(existing.dataset.loaded==='yes'){resolve();return;}existing.addEventListener('load',resolve,{once:true});existing.addEventListener('error',()=>reject(Error('Could not load audio library: '+src)),{once:true});return;}const script=document.createElement('script');script.src=src;script.onload=()=>{script.dataset.loaded='yes';resolve();};script.onerror=()=>reject(Error('Could not load audio library: '+src));document.head.append(script);});}
+const instrumentPresets={
+ piano:{file:'0000_Aspirin_sf2_file.js',variable:'_tone_0000_Aspirin_sf2_file',label:'piano',doubled:false},
+ pipeFluid:{file:'0190_FluidR3_GM_sf2_file.js',variable:'_tone_0190_FluidR3_GM_sf2_file',label:'FluidR3 pipe organ',doubled:true},
+ pipeGeneral:{file:'0190_GeneralUserGS_sf2_file.js',variable:'_tone_0190_GeneralUserGS_sf2_file',label:'GeneralUser GS pipe organ',doubled:true},
+ pipeJCLive:{file:'0190_JCLive_sf2_file.js',variable:'_tone_0190_JCLive_sf2_file',label:'JCLive pipe organ',doubled:true},
+ reedFluid:{file:'0200_FluidR3_GM_sf2_file.js',variable:'_tone_0200_FluidR3_GM_sf2_file',label:'FluidR3 reed organ',doubled:true},
+ drawbar:{file:'0160_Aspirin_sf2_file.js',variable:'_tone_0160_Aspirin_sf2_file',label:'drawbar organ',doubled:true}
+};
+async function getPreset(instrument,ctx){if(loadedPresets[instrument])return loadedPresets[instrument];if(!wafPlayer){await loadScript('https://surikov.github.io/webaudiofont/npm/dist/WebAudioFontPlayer.js');if(!window.WebAudioFontPlayer)throw Error('WebAudioFont did not initialize.');wafPlayer=new window.WebAudioFontPlayer();}const spec=instrumentPresets[instrument],url='https://surikov.github.io/webaudiofontdata/sound/'+spec.file;wafPlayer.loader.startLoad(ctx,url,spec.variable);await new Promise((resolve,reject)=>{try{wafPlayer.loader.waitLoad(resolve);}catch(e){reject(e);}});const preset=window[spec.variable];if(!preset)throw Error('The selected instrument sample did not load.');loadedPresets[instrument]=preset;return preset;}
+async function playNotes(notes){if(busy)return;busy=true;try{const ctx=getAudio(),beat=60/current.settings.tempo,spacing=beat*1.02,dur=Math.min(current.settings.duration,spacing*1.15),start=ctx.currentTime+.08,instrument=$('instrument').value;$('status').textContent='Loading '+instrumentPresets[instrument].label+' samples if needed…';const spec=instrumentPresets[instrument],preset=await getPreset(instrument,ctx);notes.forEach((n,i)=>{const when=start+i*spacing;if(spec.doubled){/* Keep the octave reinforcement used in the previous version. */wafPlayer.queueWaveTable(ctx,ctx.destination,preset,when,n-12,dur,.42);wafPlayer.queueWaveTable(ctx,ctx.destination,preset,when,n,dur,.42);}else{wafPlayer.queueWaveTable(ctx,ctx.destination,preset,when,n,dur,.75);}});const total=(notes.length-1)*spacing+dur;await new Promise(r=>setTimeout(r,total*1000+180));}catch(e){$('error').textContent=e.message;$('status').textContent='Audio could not be played.';}finally{busy=false}}
+async function playTonic(){if(!current)return;$('status').textContent='Playing tonic…';await playNotes([tonicMidi(current.key,current.settings.mode)]);if(!$('error').textContent)$('status').textContent='Sing the displayed sequence when ready.';}
+async function playFirst(){if(!current)return;const midi=toMidi(current.sequence[0],current.key,current.settings);$('status').textContent='Playing the first pitch…';await playNotes([midi]);$('status').textContent='Sing the displayed sequence when ready.';}
+async function playSequence(){if(!current)return;const notes=sequenceMidis(current.sequence,current.key,current.settings);$('status').textContent='Playing the sequence…';await playNotes(notes);if(!$('error').textContent)$('status').textContent='Sequence played. Sing it again, or generate another exercise.';}
+const voiceFiles={DO:'doh',DI:'dee',RE:'ray',RI:'ree',MI:'mee',FA:'fah',FI:'fee',SOL:'sohl',SI:'see',LA:'lah',LI:'lee',TI:'tee',LE:'leh',ME:'meh'};
+const spokenSyllables={DO:'doh',DI:'dee',RE:'ray',RI:'ree',MI:'mee',FA:'fah',FI:'fee',SOL:'sohl',SI:'see',LA:'lah',LI:'lee',TI:'tee',LE:'leh',ME:'meh'};
+function speechVoice(){const voices=window.speechSynthesis?.getVoices?.()||[];return voices.find(v=>/jenny|aria|samantha|zira|female/i.test(v.name)&&/^en(-|_)/i.test(v.lang))||voices.find(v=>/^en-US/i.test(v.lang))||null;}
+function speakWithSystemVoice(names){return new Promise((resolve,reject)=>{if(!('speechSynthesis'in window)||!('SpeechSynthesisUtterance'in window)){reject(Error('Speech synthesis is not supported in this browser.'));return;}window.speechSynthesis.cancel();const words=names.map(n=>spokenSyllables[n]||n.toLowerCase()).join(', ');const utterance=new SpeechSynthesisUtterance(words);utterance.lang='en-US';utterance.rate=0.84;utterance.pitch=1.08;utterance.volume=1;const voice=speechVoice();if(voice)utterance.voice=voice;utterance.onend=resolve;utterance.onerror=e=>reject(Error(e.error||'Speech playback failed'));window.speechSynthesis.speak(utterance);});}
+async function speakWithLocalSamples(names,run){for(let i=0;i<names.length;i++){if(run!==voiceRun)return;const id=voiceFiles[names[i]];if(!id)throw Error('No voice sample is defined for '+names[i]);const audio=new Audio(new URL('voice/'+id+'.mp3',document.baseURI).href);audio.preload='auto';activeVoiceAudio=audio;await new Promise((resolve,reject)=>{audio.onended=resolve;audio.onerror=()=>reject(Error('Local voice samples are not installed yet.'));audio.play().catch(reject);});if(i<names.length-1)await new Promise(r=>setTimeout(r,260));}}
+async function speakSequence(){if(!current)return;const names=current.sequence.map(step=>pitchInfo(step,current.settings).name.split('/')[0].toUpperCase());voiceRun++;const run=voiceRun;if(activeVoiceAudio){activeVoiceAudio.pause();activeVoiceAudio=null;}if('speechSynthesis'in window)window.speechSynthesis.cancel();$('error').textContent='';$('status').textContent='Speaking the sequence…';try{await speakWithLocalSamples(names,run);if(run===voiceRun)$('status').textContent='Sequence spoken. Sing it when ready.';}catch(e){if(run!==voiceRun)return;try{await speakWithSystemVoice(names);if(run===voiceRun)$('status').textContent='Sequence spoken. Sing it when ready.';}catch(err){$('error').textContent='Speech playback is unavailable. '+err.message;$('status').textContent='Could not speak the sequence.';}}}
+init();
+})();
+</script>
+</body>
+</html>
